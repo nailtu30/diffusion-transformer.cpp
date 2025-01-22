@@ -1,5 +1,5 @@
-#ifndef __DIFFUSION_TRANSFORMER_H__
-#define __DIFFUSION_TRANSFORMER_H__
+#ifndef __STABLE_DIFFUSION_H__
+#define __STABLE_DIFFUSION_H__
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 #ifndef DIT_BUILD_SHARED_LIB
@@ -122,9 +122,9 @@ typedef struct {
     uint8_t* data;
 } dit_image_t;
 
-typedef struct dit_ctx_t dit_ctx_t;
+typedef struct sd_ctx_t sd_ctx_t;
 
-DIT_API dit_ctx_t* new_dit_ctx(const char* model_path,
+DIT_API sd_ctx_t* new_sd_ctx(const char* model_path,
                             const char* vae_path,
                             bool free_params_immediately,
                             int n_threads,
@@ -133,10 +133,10 @@ DIT_API dit_ctx_t* new_dit_ctx(const char* model_path,
                             enum schedule_t s,
                             bool keep_vae_on_cpu);
 
-DIT_API void free_dit_ctx(dit_ctx_t* dit_ctx);
+DIT_API void free_dit_ctx(sd_ctx_t* sd_ctx);
 
-DIT_API dit_image_t* class_label2img(dit_ctx_t* dit_ctx,
-                           const int* class_label_prompt,
+DIT_API dit_image_t* class_label2img(sd_ctx_t* sd_ctx,
+                           std::vector<int> class_label_prompt,
                            float cfg_scale,
                            int width,
                            int height,
@@ -149,4 +149,4 @@ DIT_API dit_image_t* class_label2img(dit_ctx_t* dit_ctx,
 }
 #endif
 
-#endif  // __DIFFUSION_TRANSFORMER_H__
+#endif  // __STABLE_DIFFUSION_H__

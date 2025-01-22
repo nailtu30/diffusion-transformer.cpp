@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "model.h"
-#include "diffusion-transformer.h"
+#include "stable-diffusion.h"
 #include "util.h"
 #include "vocab.hpp"
 
@@ -16,7 +16,7 @@
 #include "ggml-cpu.h"
 #include "ggml.h"
 #include "gguf.h"
-#include "diffusion-transformer.h"
+#include "stable-diffusion.h"
 
 #ifdef DIT_USE_METAL
 #include "ggml-metal.h"

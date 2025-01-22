@@ -24,7 +24,7 @@
 
 #include "ggml-cpu.h"
 #include "ggml.h"
-#include "diffusion-transformer.h"
+#include "stable-diffusion.h"
 
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include "stb_image_resize.h"

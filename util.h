@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "diffusion-transformer.h"
+#include "stable-diffusion.h"
 
 bool ends_with(const std::string& str, const std::string& ending);
 bool starts_with(const std::string& str, const std::string& start);

@@ -146,62 +146,62 @@ std::vector<float> log_linear_interpolation(std::vector<float> sigma_in,
     return results;
 }
 
-/*
-https://research.nvidia.com/labs/toronto-ai/AlignYourSteps/howto.html
-*/
-struct AYSSchedule : SigmaSchedule {
-    std::vector<float> get_sigmas(uint32_t n, float sigma_min, float sigma_max, t_to_sigma_t t_to_sigma) {
-        const std::vector<float> noise_levels[] = {
-            /* SD1.5 */
-            {14.6146412293f, 6.4745760956f, 3.8636745985f, 2.6946151520f,
-             1.8841921177f, 1.3943805092f, 0.9642583904f, 0.6523686016f,
-             0.3977456272f, 0.1515232662f, 0.0291671582f},
-            /* SDXL */
-            {14.6146412293f, 6.3184485287f, 3.7681790315f, 2.1811480769f,
-             1.3405244945f, 0.8620721141f, 0.5550693289f, 0.3798540708f,
-             0.2332364134f, 0.1114188177f, 0.0291671582f},
-            /* SVD */
-            {700.00f, 54.5f, 15.886f, 7.977f, 4.248f, 1.789f, 0.981f, 0.403f,
-             0.173f, 0.034f, 0.002f},
-        };
+// /*
+// https://research.nvidia.com/labs/toronto-ai/AlignYourSteps/howto.html
+// */
+// struct AYSSchedule : SigmaSchedule {
+//     std::vector<float> get_sigmas(uint32_t n, float sigma_min, float sigma_max, t_to_sigma_t t_to_sigma) {
+//         const std::vector<float> noise_levels[] = {
+//             /* SD1.5 */
+//             {14.6146412293f, 6.4745760956f, 3.8636745985f, 2.6946151520f,
+//              1.8841921177f, 1.3943805092f, 0.9642583904f, 0.6523686016f,
+//              0.3977456272f, 0.1515232662f, 0.0291671582f},
+//             /* SDXL */
+//             {14.6146412293f, 6.3184485287f, 3.7681790315f, 2.1811480769f,
+//              1.3405244945f, 0.8620721141f, 0.5550693289f, 0.3798540708f,
+//              0.2332364134f, 0.1114188177f, 0.0291671582f},
+//             /* SVD */
+//             {700.00f, 54.5f, 15.886f, 7.977f, 4.248f, 1.789f, 0.981f, 0.403f,
+//              0.173f, 0.034f, 0.002f},
+//         };
 
-        std::vector<float> inputs;
-        std::vector<float> results(n + 1);
+//         std::vector<float> inputs;
+//         std::vector<float> results(n + 1);
 
-        switch (version) {
-            case VERSION_SD2: /* fallthrough */
-                LOG_WARN("AYS not designed for SD2.X models");
-            case VERSION_SD1:
-                LOG_INFO("AYS using SD1.5 noise levels");
-                inputs = noise_levels[0];
-                break;
-            case VERSION_SDXL:
-                LOG_INFO("AYS using SDXL noise levels");
-                inputs = noise_levels[1];
-                break;
-            case VERSION_SVD:
-                LOG_INFO("AYS using SVD noise levels");
-                inputs = noise_levels[2];
-                break;
-            default:
-                LOG_ERROR("Version not compatable with AYS scheduler");
-                return results;
-        }
+//         switch (version) {
+//             case VERSION_SD2: /* fallthrough */
+//                 LOG_WARN("AYS not designed for SD2.X models");
+//             case VERSION_SD1:
+//                 LOG_INFO("AYS using SD1.5 noise levels");
+//                 inputs = noise_levels[0];
+//                 break;
+//             case VERSION_SDXL:
+//                 LOG_INFO("AYS using SDXL noise levels");
+//                 inputs = noise_levels[1];
+//                 break;
+//             case VERSION_SVD:
+//                 LOG_INFO("AYS using SVD noise levels");
+//                 inputs = noise_levels[2];
+//                 break;
+//             default:
+//                 LOG_ERROR("Version not compatable with AYS scheduler");
+//                 return results;
+//         }
 
-        /* Stretches those pre-calculated reference levels out to the desired
-         * size using log-linear interpolation */
-        if ((n + 1) != inputs.size()) {
-            results = log_linear_interpolation(inputs, n + 1);
-        } else {
-            results = inputs;
-        }
+//         /* Stretches those pre-calculated reference levels out to the desired
+//          * size using log-linear interpolation */
+//         if ((n + 1) != inputs.size()) {
+//             results = log_linear_interpolation(inputs, n + 1);
+//         } else {
+//             results = inputs;
+//         }
 
-        /* Not sure if this is strictly neccessary */
-        results[n] = 0.0f;
+//         /* Not sure if this is strictly neccessary */
+//         results[n] = 0.0f;
 
-        return results;
-    }
-};
+//         return results;
+//     }
+// };
 
 /*
  * GITS Scheduler: https://github.com/zju-pi/diff-sampler/tree/main/gits-main
