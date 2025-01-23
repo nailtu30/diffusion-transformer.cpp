@@ -1219,21 +1219,3 @@ int64_t ModelLoader::get_params_mem_size(ggml_backend_t backend, ggml_type type)
 
     return mem_size;
 }
-
-bool convert(const char* input_path, const char* vae_path, const char* output_path, dit_type_t output_type) {
-    ModelLoader model_loader;
-
-    if (!model_loader.init_from_file(input_path)) {
-        LOG_ERROR("init model loader from file failed: '%s'", input_path);
-        return false;
-    }
-
-    if (vae_path != NULL && strlen(vae_path) > 0) {
-        if (!model_loader.init_from_file(vae_path, "vae.")) {
-            LOG_ERROR("init model loader from file failed: '%s'", vae_path);
-            return false;
-        }
-    }
-    bool success = model_loader.save_to_gguf_file(output_path, (ggml_type)output_type);
-    return success;
-}

@@ -133,7 +133,7 @@ DIT_API sd_ctx_t* new_sd_ctx(const char* model_path,
                             enum schedule_t s,
                             bool keep_vae_on_cpu);
 
-DIT_API void free_dit_ctx(sd_ctx_t* sd_ctx);
+DIT_API void free_sd_ctx(sd_ctx_t* sd_ctx);
 
 DIT_API dit_image_t* class_label2img(sd_ctx_t* sd_ctx,
                            std::vector<int> class_label_prompt,
