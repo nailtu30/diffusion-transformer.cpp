@@ -4,18 +4,19 @@
 #include "dit.hpp"
 
 struct DiffusionModel {
+    virtual ~DiffusionModel() = default;
     virtual void compute(int n_threads,
                          struct ggml_tensor* x,
                          struct ggml_tensor* timesteps,
                          struct ggml_tensor* y,
                          struct ggml_tensor** output               = NULL,
-                         struct ggml_context* output_ctx           = NULL);
+                         struct ggml_context* output_ctx           = NULL)              = 0;
     virtual void alloc_params_buffer()                                                  = 0;
     virtual void free_params_buffer()                                                   = 0;
     virtual void free_compute_buffer()                                                  = 0;
     virtual void get_param_tensors(std::map<std::string, struct ggml_tensor*>& tensors) = 0;
     virtual size_t get_params_buffer_size()                                             = 0;
-    virtual int64_t get_adm_in_channels()                                               = 0;
+    // virtual int64_t get_adm_in_channels()                                               = 0;
 };
 
 struct DiTModel : public DiffusionModel {
@@ -26,23 +27,23 @@ struct DiTModel : public DiffusionModel {
         : dit(backend, tensor_types, "") {
     }
 
-    void alloc_params_buffer() {
+    void alloc_params_buffer() override {
         dit.alloc_params_buffer();
     }
 
-    void free_params_buffer() {
+    void free_params_buffer() override {
         dit.free_params_buffer();
     }
 
-    void free_compute_buffer() {
+    void free_compute_buffer() override {
         dit.free_compute_buffer();
     }
 
-    void get_param_tensors(std::map<std::string, struct ggml_tensor*>& tensors) {
+    void get_param_tensors(std::map<std::string, struct ggml_tensor*>& tensors) override {
         dit.get_param_tensors(tensors, "");
     }
 
-    size_t get_params_buffer_size() {
+    size_t get_params_buffer_size() override {
         return dit.get_params_buffer_size();
     }
 
@@ -55,7 +56,7 @@ struct DiTModel : public DiffusionModel {
                  struct ggml_tensor* timesteps,
                  struct ggml_tensor* y,
                  struct ggml_tensor** output               = NULL,
-                 struct ggml_context* output_ctx           = NULL) {
+                 struct ggml_context* output_ctx           = NULL) override {
         return dit.compute(n_threads, x, timesteps, y, output, output_ctx);
     }
 };

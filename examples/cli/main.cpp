@@ -232,7 +232,9 @@ void parse_args(int argc, const char** argv, DITParams& params) {
                 invalid_arg = true;
                 break;
             }
-            params.temp_prompt = argv[i];
+            // params.temp_prompt = argv[i];
+            params.temp_prompt = "[207, 360, 387, 974, 88, 979, 417, 279]";
+            params.class_label_prompt = {207, 360, 387, 974, 88, 979, 417, 279};
         } else if (arg == "--cfg-scale") {
             if (++i >= argc) {
                 invalid_arg = true;
@@ -458,6 +460,14 @@ bool convert(const char* input_path, const char* vae_path, const char* output_pa
     return success;
 }
 
+bool test_model_loader(const char* input_path) {
+    ModelLoader model_loader;
+    if (!model_loader.init_from_file(input_path)) {
+        LOG_ERROR("init model loader from file failed: '%s'", input_path);
+        return false;
+    }
+}
+
 int main(int argc, const char* argv[]) {
     DITParams params;
 
@@ -470,70 +480,72 @@ int main(int argc, const char* argv[]) {
         printf("%s", dit_get_system_info());
     }
 
-    if (params.mode == CONVERT) {
-        bool success = convert(params.model_path.c_str(), params.vae_path.c_str(), params.output_path.c_str(), params.wtype);
-        if (!success) {
-            fprintf(stderr,
-                    "convert '%s'/'%s' to '%s' failed\n",
-                    params.model_path.c_str(),
-                    params.vae_path.c_str(),
-                    params.output_path.c_str());
-            return 1;
-        } else {
-            printf("convert '%s'/'%s' to '%s' success\n",
-                   params.model_path.c_str(),
-                   params.vae_path.c_str(),
-                   params.output_path.c_str());
-            return 0;
-        }
-    }
-    uint8_t* input_image_buffer   = NULL;
+    bool success = test_model_loader(params.model_path.c_str());
 
-    sd_ctx_t* sd_ctx = new_sd_ctx(params.model_path.c_str(),
-                                  params.vae_path.c_str(),
-                                  true,
-                                  params.n_threads,
-                                  params.wtype,
-                                  params.rng_type,
-                                  params.schedule,
-                                  params.vae_on_cpu);
+    // if (params.mode == CONVERT) {
+    //     bool success = convert(params.model_path.c_str(), params.vae_path.c_str(), params.output_path.c_str(), params.wtype);
+    //     if (!success) {
+    //         fprintf(stderr,
+    //                 "convert '%s'/'%s' to '%s' failed\n",
+    //                 params.model_path.c_str(),
+    //                 params.vae_path.c_str(),
+    //                 params.output_path.c_str());
+    //         return 1;
+    //     } else {
+    //         printf("convert '%s'/'%s' to '%s' success\n",
+    //                params.model_path.c_str(),
+    //                params.vae_path.c_str(),
+    //                params.output_path.c_str());
+    //         return 0;
+    //     }
+    // }
+    // uint8_t* input_image_buffer   = NULL;
 
-    if (sd_ctx == NULL) {
-        printf("new_sd_ctx_t failed\n");
-        return 1;
-    }
+    // sd_ctx_t* sd_ctx = new_sd_ctx(params.model_path.c_str(),
+    //                               params.vae_path.c_str(),
+    //                               true,
+    //                               params.n_threads,
+    //                               params.wtype,
+    //                               params.rng_type,
+    //                               params.schedule,
+    //                               params.vae_on_cpu);
 
-    dit_image_t* results = class_label2img(sd_ctx,
-                          params.class_label_prompt,
-                          params.cfg_scale,
-                          params.width,
-                          params.height,
-                          params.sample_method,
-                          params.sample_steps,
-                          params.seed,
-                          params.batch_count);
-    if (results == NULL) {
-        printf("generate failed\n");
-        free_sd_ctx(sd_ctx);
-        return 1;
-    }
+    // if (sd_ctx == NULL) {
+    //     printf("new_sd_ctx_t failed\n");
+    //     return 1;
+    // }
 
-    size_t last            = params.output_path.find_last_of(".");
-    std::string dummy_name = last != std::string::npos ? params.output_path.substr(0, last) : params.output_path;
-    for (int i = 0; i < params.batch_count; i++) {
-        if (results[i].data == NULL) {
-            continue;
-        }
-        std::string final_image_path = i > 0 ? dummy_name + "_" + std::to_string(i + 1) + ".png" : dummy_name + ".png";
-        stbi_write_png(final_image_path.c_str(), results[i].width, results[i].height, results[i].channel,
-                       results[i].data, 0, get_image_params(params, params.seed + i).c_str());
-        printf("save result image to '%s'\n", final_image_path.c_str());
-        free(results[i].data);
-        results[i].data = NULL;
-    }
-    free(results);
-    free_sd_ctx(sd_ctx);
-    free(input_image_buffer);
+    // dit_image_t* results = class_label2img(sd_ctx,
+    //                       params.class_label_prompt,
+    //                       params.cfg_scale,
+    //                       params.width,
+    //                       params.height,
+    //                       params.sample_method,
+    //                       params.sample_steps,
+    //                       params.seed,
+    //                       params.batch_count);
+    // if (results == NULL) {
+    //     printf("generate failed\n");
+    //     free_sd_ctx(sd_ctx);
+    //     return 1;
+    // }
+
+    // size_t last            = params.output_path.find_last_of(".");
+    // std::string dummy_name = last != std::string::npos ? params.output_path.substr(0, last) : params.output_path;
+    // for (int i = 0; i < params.batch_count; i++) {
+    //     if (results[i].data == NULL) {
+    //         continue;
+    //     }
+    //     std::string final_image_path = i > 0 ? dummy_name + "_" + std::to_string(i + 1) + ".png" : dummy_name + ".png";
+    //     stbi_write_png(final_image_path.c_str(), results[i].width, results[i].height, results[i].channel,
+    //                    results[i].data, 0, get_image_params(params, params.seed + i).c_str());
+    //     printf("save result image to '%s'\n", final_image_path.c_str());
+    //     free(results[i].data);
+    //     results[i].data = NULL;
+    // }
+    // free(results);
+    // free_sd_ctx(sd_ctx);
+    // free(input_image_buffer);
 
     return 0;
 }

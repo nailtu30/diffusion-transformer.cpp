@@ -815,7 +815,9 @@ bool ModelLoader::init_from_ckpt_file(const std::string& file_path, const std::s
         LOG_ERROR("failed to open '%s'", file_path.c_str());
         return false;
     }
+    LOG_DEBUG("before zip_entries_total %p", zip);
     int n = (int)zip_entries_total(zip);
+    LOG_DEBUG("zip_entries_total %n", n);
     for (int i = 0; i < n; ++i) {
         zip_entry_openbyindex(zip, i);
         {

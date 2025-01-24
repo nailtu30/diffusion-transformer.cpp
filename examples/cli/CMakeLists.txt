@@ -1,4 +1,4 @@
-set(TARGET dit)
+set(TARGET dit-cli)
 
 add_executable(${TARGET} main.cpp)
 install(TARGETS ${TARGET} RUNTIME)
