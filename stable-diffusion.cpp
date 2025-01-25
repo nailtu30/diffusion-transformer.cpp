@@ -150,7 +150,7 @@ public:
 
         if (vae_path.size() > 0) {
             LOG_INFO("loading vae from '%s'", vae_path.c_str());
-            if (!model_loader.init_from_file(vae_path, "vae.")) {
+            if (!model_loader.init_from_file(vae_path, "first_stage_model.")) {
                 LOG_WARN("loading vae from '%s' failed", vae_path.c_str());
             }
         }
@@ -197,6 +197,14 @@ public:
         first_stage_model = std::make_shared<AutoEncoderKL>(vae_backend, model_loader.tensor_storages_types, "first_stage_model", vae_decode_only, false, version);
         first_stage_model->alloc_params_buffer();
         first_stage_model->get_param_tensors(tensors, "first_stage_model");
+        // int vae_layer_index = 0;
+        // for (auto tensor: tensors) {
+        //     if (starts_with(tensor.first, "first_stage_model")) {
+        //         LOG_DEBUG("%d %s", vae_layer_index, tensor.first.c_str());
+        //         vae_layer_index += 1;
+        //     }
+        // }
+        // LOG_DEBUG("vae_layer_index %d", vae_layer_index);
 
         struct ggml_init_params params;
         params.mem_size   = static_cast<size_t>(10 * 1024) * 1024;  // 10M

@@ -90,12 +90,15 @@ enum dit_type_t {
     DIT_TYPE_F64      = 28,
     DIT_TYPE_IQ1_M    = 29,
     DIT_TYPE_BF16     = 30,
-    DIT_TYPE_Q4_0_4_4 = 31,
-    DIT_TYPE_Q4_0_4_8 = 32,
-    DIT_TYPE_Q4_0_8_8 = 33,
+    // DIT_TYPE_Q4_0_4_4 = 31, support has been removed from gguf files
+    // DIT_TYPE_Q4_0_4_8 = 32,
+    // DIT_TYPE_Q4_0_8_8 = 33,
     DIT_TYPE_TQ1_0    = 34,
     DIT_TYPE_TQ2_0    = 35,
-    DIT_TYPE_COUNT,
+    // DIT_TYPE_IQ4_NL_4_4 = 36,
+    // DIT_TYPE_IQ4_NL_4_8 = 37,
+    // DIT_TYPE_IQ4_NL_8_8 = 38,
+    DIT_TYPE_COUNT    = 39,
 };
 
 DIT_API const char* dit_type_name(enum dit_type_t type);

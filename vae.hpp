@@ -373,13 +373,13 @@ public:
             int mult      = ch_mult[i];
             int block_out = ch * mult;
             for (int j = 0; j < num_res_blocks + 1; j++) {
-                std::string name = "up." + std::to_string(i) + ".block." + std::to_string(j);
+                std::string name = "up." + std::to_string(3-i) + ".block." + std::to_string(j);
                 blocks[name]     = get_resnet_block(block_in, block_out);
 
                 block_in = block_out;
             }
             if (i != 0) {
-                std::string name = "up." + std::to_string(i) + ".upsample";
+                std::string name = "up." + std::to_string(3-i) + ".upsample";
                 blocks[name]     = std::shared_ptr<GGMLBlock>(new UpSampleBlock(block_in, block_in));
             }
         }
@@ -459,7 +459,7 @@ public:
                        DITVersion version      = VERSION_DIT1)
         : decode_only(decode_only), use_video_decoder(use_video_decoder) {
         if (dit_version_is_dit1(version)) {
-            dd_config.z_channels = 16;
+            dd_config.z_channels = 4;
             use_quant            = false;
         }
         if (use_video_decoder) {

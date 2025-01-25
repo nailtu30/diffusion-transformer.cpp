@@ -77,6 +77,54 @@ bool is_unused_tensor(std::string name) {
 
 void preprocess_tensor(TensorStorage tensor_storage,
                        std::vector<TensorStorage>& processed_tensor_storages) {
+    if (tensor_storage.name == "y_embedder.embedding_table.weight") {
+        tensor_storage.name = "y_embedder.weight";
+    } else if (starts_with(tensor_storage.name, "first_stage_model")) {
+        // LOG_DEBUG("%s", tensor_storage.name.c_str());
+        if (contains(tensor_storage.name, "down_blocks")) {
+            size_t pos = tensor_storage.name.find("down_blocks");
+            std::string part1 = tensor_storage.name.substr(0, pos);
+            std::string part2 = tensor_storage.name.substr(pos);
+            if (contains(part2, "resnets")) {
+                pos = part2.find("resnets");
+                std::string layer_id = part2.substr(pos-2, 1);
+                std::string suffix = part2.substr(pos+7);
+                std::string new_name = part1 + "down." + layer_id + ".block" + suffix;
+                tensor_storage.name = new_name;
+                // LOG_DEBUG("new name: %s", new_name.c_str());
+            } else if (contains(part2, "downsamplers")) {
+                pos = part2.find("downsamplers");
+                std::string layer_id = part2.substr(pos-2, 1);
+                std::string suffix = part2.substr(pos+14);
+                std::string new_name = part1 + "down." + layer_id + ".downsample" + suffix;
+                tensor_storage.name = new_name;
+                // LOG_DEBUG("new name: %s", new_name.c_str());
+            } else {
+                LOG_ERROR("%s does not be handled", tensor_storage.name.c_str());
+            }
+        } else if (contains(tensor_storage.name, "up_blocks")) {
+            size_t pos = tensor_storage.name.find("up_blocks");
+            std::string part1 = tensor_storage.name.substr(0, pos);
+            std::string part2 = tensor_storage.name.substr(pos);
+            if (contains(part2, "resnets")) {
+                pos = part2.find("resnets");
+                std::string layer_id = part2.substr(pos-2, 1);
+                std::string suffix = part2.substr(pos+7);
+                std::string new_name = part1 + "up." + layer_id + ".block" + suffix;
+                tensor_storage.name = new_name;
+                // LOG_DEBUG("new name: %s", new_name.c_str());
+            } else if (contains(part2, "upsamplers")) {
+                pos = part2.find("upsamplers");
+                std::string layer_id = part2.substr(pos-2, 1);
+                std::string suffix = part2.substr(pos+12);
+                std::string new_name = part1 + "up." + layer_id + ".upsample" + suffix;
+                tensor_storage.name = new_name;
+                // LOG_DEBUG("new name: %s", new_name.c_str());
+            } else {
+                LOG_ERROR("%s does not be handled", tensor_storage.name.c_str());
+            }
+        }
+    }
     processed_tensor_storages.push_back(tensor_storage);
 }
 
@@ -396,7 +444,7 @@ bool ModelLoader::init_from_gguf_file(const std::string& file_path, const std::s
         struct ggml_tensor* dummy = ggml_get_tensor(ctx_meta_, name.c_str());
         size_t offset             = data_offset + gguf_get_tensor_offset(ctx_gguf_, i);
 
-        // LOG_DEBUG("%s", name.c_str());
+        // LOG_DEBUG("%s %s", name.c_str(), ggml_type_name(dummy->type));
 
         TensorStorage tensor_storage(prefix + name, dummy->type, dummy->ne, ggml_n_dims(dummy), file_index, offset);
 
@@ -815,9 +863,7 @@ bool ModelLoader::init_from_ckpt_file(const std::string& file_path, const std::s
         LOG_ERROR("failed to open '%s'", file_path.c_str());
         return false;
     }
-    LOG_DEBUG("before zip_entries_total %p", zip);
     int n = (int)zip_entries_total(zip);
-    LOG_DEBUG("zip_entries_total %n", n);
     for (int i = 0; i < n; ++i) {
         zip_entry_openbyindex(zip, i);
         {
@@ -857,9 +903,9 @@ ggml_type ModelLoader::get_dit_wtype() {
             return tensor_storage.type;
         }
 
-        if (tensor_should_be_converted(tensor_storage, GGML_TYPE_Q4_K)) {
-            return tensor_storage.type;
-        }
+        // if (tensor_should_be_converted(tensor_storage, GGML_TYPE_Q4_K)) {
+        //     return tensor_storage.type;
+        // }
     }
     return GGML_TYPE_COUNT;
 }
@@ -903,7 +949,7 @@ std::vector<TensorStorage> remove_duplicates(const std::vector<TensorStorage>& v
 bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb, ggml_backend_t backend) {
     std::vector<TensorStorage> processed_tensor_storages;
     for (auto& tensor_storage : tensor_storages) {
-        // LOG_DEBUG("%s", name.c_str());
+        // LOG_DEBUG("tensor_storage: %s", tensor_storage.name.c_str());
 
         if (is_unused_tensor(tensor_storage.name)) {
             continue;
@@ -973,6 +1019,7 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb, ggml_backend
         int tensor_count = 0;
         int64_t t1       = ggml_time_ms();
         for (auto& tensor_storage : processed_tensor_storages) {
+            // LOG_DEBUG("tensor_storage: %s", tensor_storage.name.c_str());
             if (tensor_storage.file_index != file_index) {
                 ++tensor_count;
                 continue;
@@ -995,19 +1042,20 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb, ggml_backend
             if (dst_tensor->buffer == NULL || ggml_backend_buffer_is_host(dst_tensor->buffer)) {
                 // for the CPU and Metal backend, we can copy directly into the tensor
                 if (tensor_storage.type == dst_tensor->type) {
+                    // LOG_DEBUG("%s dst_tensor: %ld    %ld %ld %ld %ld\ttensor_storage: %ld    %ld %ld %ld %ld", tensor_storage.name.c_str(), ggml_nbytes(dst_tensor), dst_tensor->ne[0], dst_tensor->ne[1], dst_tensor->ne[2], dst_tensor->ne[3], tensor_storage.nbytes(), tensor_storage.ne[0], tensor_storage.ne[1], tensor_storage.ne[2], tensor_storage.ne[3]);
                     GGML_ASSERT(ggml_nbytes(dst_tensor) == tensor_storage.nbytes());
                     read_data(tensor_storage, (char*)dst_tensor->data, nbytes_to_read);
 
-                    if (tensor_storage.is_bf16) {
-                        // inplace op
-                        bf16_to_f32_vec((uint16_t*)dst_tensor->data, (float*)dst_tensor->data, tensor_storage.nelements());
-                    } else if (tensor_storage.is_f8_e4m3) {
-                        // inplace op
-                        f8_e4m3_to_f16_vec((uint8_t*)dst_tensor->data, (uint16_t*)dst_tensor->data, tensor_storage.nelements());
-                    } else if (tensor_storage.is_f8_e5m2) {
-                        // inplace op
-                        f8_e5m2_to_f16_vec((uint8_t*)dst_tensor->data, (uint16_t*)dst_tensor->data, tensor_storage.nelements());
-                    }
+                    // if (tensor_storage.is_bf16) {
+                    //     // inplace op
+                    //     bf16_to_f32_vec((uint16_t*)dst_tensor->data, (float*)dst_tensor->data, tensor_storage.nelements());
+                    // } else if (tensor_storage.is_f8_e4m3) {
+                    //     // inplace op
+                    //     f8_e4m3_to_f16_vec((uint8_t*)dst_tensor->data, (uint16_t*)dst_tensor->data, tensor_storage.nelements());
+                    // } else if (tensor_storage.is_f8_e5m2) {
+                    //     // inplace op
+                    //     f8_e5m2_to_f16_vec((uint8_t*)dst_tensor->data, (uint16_t*)dst_tensor->data, tensor_storage.nelements());
+                    // }
                 } else {
                     read_buffer.resize(tensor_storage.nbytes());
                     read_data(tensor_storage, (char*)read_buffer.data(), nbytes_to_read);
@@ -1054,7 +1102,7 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb, ggml_backend
                 }
             }
             int64_t t2 = ggml_time_ms();
-            pretty_progress(++tensor_count, processed_tensor_storages.size(), (t2 - t1) / 1000.0f);
+            // pretty_progress(++tensor_count, processed_tensor_storages.size(), (t2 - t1) / 1000.0f);
             t1 = t2;
         }
 
@@ -1072,41 +1120,50 @@ bool ModelLoader::load_tensors(on_new_tensor_cb_t on_new_tensor_cb, ggml_backend
 bool ModelLoader::load_tensors(std::map<std::string, struct ggml_tensor*>& tensors,
                                ggml_backend_t backend,
                                std::set<std::string> ignore_tensors) {
-    std::set<std::string> tensor_names_in_file;
+    // std::set<std::string> tensor_names_in_file;
     auto on_new_tensor_cb = [&](const TensorStorage& tensor_storage, ggml_tensor** dst_tensor) -> bool {
+        
+        // for (auto tensor: tensors) {
+        //     LOG_DEBUG("Tensor: %s", tensor.first.c_str());
+        // }
+
         const std::string& name = tensor_storage.name;
-        // LOG_DEBUG("%s", tensor_storage.to_string().c_str());
-        tensor_names_in_file.insert(name);
+        // tensor_names_in_file.insert(name);
 
         struct ggml_tensor* real;
-        if (tensors.find(name) != tensors.end()) {
-            real = tensors[name];
-        } else {
-            for (auto& ignore_tensor : ignore_tensors) {
-                if (starts_with(name, ignore_tensor)) {
-                    return true;
-                }
-            }
-            LOG_INFO("unknown tensor '%s' in model file", tensor_storage.to_string().c_str());
-            return true;
-        }
+        real = tensors[name];
+        // LOG_DEBUG("%p tensor_storage.name: %s %ld %ld %ld %ld", real, name.c_str(), real->ne[0], real->ne[1], real->ne[2], real->ne[3]);
+        // if (tensors.find(name) != tensors.end()) {
+        //     real = tensors[name];
+        // } else {
+        //     for (auto& ignore_tensor : ignore_tensors) {
+        //         if (starts_with(name, ignore_tensor)) {
+        //             return true;
+        //         }
+        //     }
+        //     LOG_INFO("unknown tensor '%s' in model file", tensor_storage.to_string().c_str());
+        //     return true;
+        // }
 
-        if (
-            real->ne[0] != tensor_storage.ne[0] ||
-            real->ne[1] != tensor_storage.ne[1] ||
-            real->ne[2] != tensor_storage.ne[2] ||
-            real->ne[3] != tensor_storage.ne[3]) {
-            LOG_ERROR(
-                "tensor '%s' has wrong shape in model file: "
-                "got [%d, %d, %d, %d], expected [%d, %d, %d, %d]",
-                name.c_str(),
-                (int)tensor_storage.ne[0], (int)tensor_storage.ne[1], (int)tensor_storage.ne[2], (int)tensor_storage.ne[3],
-                (int)real->ne[0], (int)real->ne[1], (int)real->ne[2], (int)real->ne[3]);
-            return false;
-        }
+        // if (
+        //     real->ne[0] != tensor_storage.ne[0] ||
+        //     real->ne[1] != tensor_storage.ne[1] ||
+        //     real->ne[2] != tensor_storage.ne[2] ||
+        //     real->ne[3] != tensor_storage.ne[3]) {
+        //     LOG_ERROR(
+        //         "tensor '%s' has wrong shape in model file: "
+        //         "got [%d, %d, %d, %d], expected [%d, %d, %d, %d]",
+        //         name.c_str(),
+        //         (int)tensor_storage.ne[0], (int)tensor_storage.ne[1], (int)tensor_storage.ne[2], (int)tensor_storage.ne[3],
+        //         (int)real->ne[0], (int)real->ne[1], (int)real->ne[2], (int)real->ne[3]);
+        //     return false;
+        // }
+
+        // if (name == "final_layer.linear.weight") {
+        //     LOG_DEBUG("%ld %ld %ld %ld", real->ne[0], real->ne[1], tensor_storage.ne[0], tensor_storage.ne[1]);
+        // }
 
         *dst_tensor = real;
-
         return true;
     };
 
@@ -1118,12 +1175,12 @@ bool ModelLoader::load_tensors(std::map<std::string, struct ggml_tensor*>& tenso
 
     bool some_tensor_not_init = false;
 
-    for (auto pair : tensors) {
-        if (tensor_names_in_file.find(pair.first) == tensor_names_in_file.end()) {
-            LOG_ERROR("tensor '%s' not in model file", pair.first.c_str());
-            some_tensor_not_init = true;
-        }
-    }
+    // for (auto pair : tensors) {
+    //     if (tensor_names_in_file.find(pair.first) == tensor_names_in_file.end()) {
+    //         LOG_ERROR("tensor '%s' not in model file", pair.first.c_str());
+    //         some_tensor_not_init = true;
+    //     }
+    // }
 
     if (some_tensor_not_init) {
         return false;
@@ -1191,7 +1248,7 @@ bool ModelLoader::save_to_gguf_file(const std::string& file_path, ggml_type type
     LOG_INFO("load tensors done");
     LOG_INFO("trying to save tensors to %s", file_path.c_str());
     if (success) {
-        gguf_write_to_file(gguf_ctx, file_path.c_str(), false);
+        // gguf_write_to_file(gguf_ctx, file_path.c_str(), false);
     }
     ggml_free(ggml_ctx);
     gguf_free(gguf_ctx);
@@ -1216,8 +1273,8 @@ int64_t ModelLoader::get_params_mem_size(ggml_backend_t backend, ggml_type type)
         if (tensor_should_be_converted(tensor_storage, type)) {
             tensor_storage.type = type;
         }
+        // LOG_DEBUG("%s\ttensor_storage.nbytes(): %d", tensor_storage.name.c_str(), tensor_storage.nbytes());
         mem_size += tensor_storage.nbytes() + alignment;
     }
-
     return mem_size;
 }

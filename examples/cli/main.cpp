@@ -466,6 +466,9 @@ bool test_model_loader(const char* input_path) {
         LOG_ERROR("init model loader from file failed: '%s'", input_path);
         return false;
     }
+    bool success = model_loader.save_to_gguf_file("NO PATH", GGML_TYPE_F32);
+    LOG_DEBUG("test_model_loader done");
+    return true;
 }
 
 int main(int argc, const char* argv[]) {
@@ -480,40 +483,40 @@ int main(int argc, const char* argv[]) {
         printf("%s", dit_get_system_info());
     }
 
-    bool success = test_model_loader(params.model_path.c_str());
+    // bool success = test_model_loader(params.model_path.c_str());
 
-    // if (params.mode == CONVERT) {
-    //     bool success = convert(params.model_path.c_str(), params.vae_path.c_str(), params.output_path.c_str(), params.wtype);
-    //     if (!success) {
-    //         fprintf(stderr,
-    //                 "convert '%s'/'%s' to '%s' failed\n",
-    //                 params.model_path.c_str(),
-    //                 params.vae_path.c_str(),
-    //                 params.output_path.c_str());
-    //         return 1;
-    //     } else {
-    //         printf("convert '%s'/'%s' to '%s' success\n",
-    //                params.model_path.c_str(),
-    //                params.vae_path.c_str(),
-    //                params.output_path.c_str());
-    //         return 0;
-    //     }
-    // }
-    // uint8_t* input_image_buffer   = NULL;
+    if (params.mode == CONVERT) {
+        bool success = convert(params.model_path.c_str(), params.vae_path.c_str(), params.output_path.c_str(), params.wtype);
+        if (!success) {
+            fprintf(stderr,
+                    "convert '%s'/'%s' to '%s' failed\n",
+                    params.model_path.c_str(),
+                    params.vae_path.c_str(),
+                    params.output_path.c_str());
+            return 1;
+        } else {
+            printf("convert '%s'/'%s' to '%s' success\n",
+                   params.model_path.c_str(),
+                   params.vae_path.c_str(),
+                   params.output_path.c_str());
+            return 0;
+        }
+    }
+    uint8_t* input_image_buffer   = NULL;
 
-    // sd_ctx_t* sd_ctx = new_sd_ctx(params.model_path.c_str(),
-    //                               params.vae_path.c_str(),
-    //                               true,
-    //                               params.n_threads,
-    //                               params.wtype,
-    //                               params.rng_type,
-    //                               params.schedule,
-    //                               params.vae_on_cpu);
+    sd_ctx_t* sd_ctx = new_sd_ctx(params.model_path.c_str(),
+                                  params.vae_path.c_str(),
+                                  true,
+                                  params.n_threads,
+                                  params.wtype,
+                                  params.rng_type,
+                                  params.schedule,
+                                  params.vae_on_cpu);
 
-    // if (sd_ctx == NULL) {
-    //     printf("new_sd_ctx_t failed\n");
-    //     return 1;
-    // }
+    if (sd_ctx == NULL) {
+        printf("new_sd_ctx_t failed\n");
+        return 1;
+    }
 
     // dit_image_t* results = class_label2img(sd_ctx,
     //                       params.class_label_prompt,
@@ -544,8 +547,8 @@ int main(int argc, const char* argv[]) {
     //     results[i].data = NULL;
     // }
     // free(results);
-    // free_sd_ctx(sd_ctx);
-    // free(input_image_buffer);
+    free_sd_ctx(sd_ctx);
+    free(input_image_buffer);
 
     return 0;
 }

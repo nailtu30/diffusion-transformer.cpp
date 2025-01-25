@@ -410,26 +410,27 @@ protected:
     int64_t num_patches             = -1;
     int64_t out_channels            = -1;
 
-    void init_params(struct ggml_context* ctx) {
+    void init_params(struct ggml_context* ctx, std::map<std::string, enum ggml_type>& tensor_types, const std::string prefix = "") {
         enum ggml_type wtype = GGML_TYPE_F32;
         num_patches = int(input_size / patch_size) * int(input_size / patch_size);
         params["pos_embed"]  = ggml_new_tensor_3d(ctx, wtype, hidden_size, num_patches, 1);
-
-        if (learn_sigma)
-        {
-            out_channels = in_channels * 2;
-        } else {
-            out_channels = in_channels;
-        }
     }
 
 public:
     DiT() {
         // read tensors from tensor_types
         LOG_INFO("DiT layers: %d", depth);
+        if (learn_sigma)
+        {
+            out_channels = in_channels * 2;
+        } else {
+            out_channels = in_channels;
+        }
         blocks["x_embedder"] = std::shared_ptr<GGMLBlock>(new PatchEmbed(input_size, patch_size, in_channels, hidden_size, true));
         blocks["t_embedder"] = std::shared_ptr<GGMLBlock>(new TimestepEmbedder(hidden_size));
-        blocks["y_embedder"] = std::shared_ptr<GGMLBlock>(new VectorEmbedder(num_classes, hidden_size));
+        // blocks["y_embedder"] = std::shared_ptr<GGMLBlock>(new VectorEmbedder(num_classes, hidden_size));
+        int use_cfg_embedding = class_dropout_prob > 0;
+        blocks["y_embedder"] = std::shared_ptr<GGMLBlock>(new Embedding(num_classes + use_cfg_embedding, hidden_size));
 
         for (int i = 0; i < depth; i++) {
             blocks["blocks." + std::to_string(i)] = std::shared_ptr<GGMLBlock>(new DiTBlock(hidden_size,
