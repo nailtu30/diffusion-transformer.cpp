@@ -1191,10 +1191,17 @@ bool ModelLoader::load_tensors(std::map<std::string, struct ggml_tensor*>& tenso
 bool ModelLoader::tensor_should_be_converted(const TensorStorage& tensor_storage, ggml_type type) {
     const std::string& name = tensor_storage.name;
     if (type != GGML_TYPE_COUNT) {
-        if (ggml_is_quantized(type) && tensor_storage.ne[0] % ggml_blck_size(type) != 0) {
-            // Pass, do not convert
-            LOG_ERROR("tensor_storage.ne[0] is not a multiple of ggml_blck_size(type)");
-        } else if (contains(name, "blocks") &
+        // if (ggml_is_quantized(type) && tensor_storage.ne[0] % ggml_blck_size(type) != 0) {
+        //     // Pass, do not convert
+        //     LOG_ERROR("tensor_storage.ne[0] (%ld) is not a multiple of ggml_blck_size(type) (%ld)", tensor_storage.ne[0], ggml_blck_size(type));
+        // } else if (contains(name, "blocks") &
+        //             (ends_with(name, "attn.qkv.weight") ||
+        //             ends_with(name, "attn.proj.weight") ||
+        //             ends_with(name, "mlp.fc1.weight") ||
+        //             ends_with(name, "mlp.fc2.weight"))) {
+        //     return true;
+        // }
+        if (contains(name, "blocks") &
                     (ends_with(name, "attn.qkv.weight") ||
                     ends_with(name, "attn.proj.weight") ||
                     ends_with(name, "mlp.fc1.weight") ||
@@ -1206,6 +1213,22 @@ bool ModelLoader::tensor_should_be_converted(const TensorStorage& tensor_storage
 }
 
 bool ModelLoader::save_to_gguf_file(const std::string& file_path, ggml_type type) {
+
+    // for (auto tensor_storage: tensor_storages) {
+    //     if (contains(tensor_storage.name, "blocks") &
+    //                 (ends_with(tensor_storage.name, "attn.qkv.weight") ||
+    //                 ends_with(tensor_storage.name, "attn.proj.weight") ||
+    //                 ends_with(tensor_storage.name, "mlp.fc1.weight") ||
+    //                 ends_with(tensor_storage.name, "mlp.fc2.weight"))) {
+    //         if (ggml_is_quantized(type) && tensor_storage.ne[0] % ggml_blck_size(type) != 0) {
+    //             int64_t multiple = tensor_storage.ne[0] / ggml_blck_size(type);
+    //             int64_t new_ne0 = (multiple + 1) * ggml_blck_size(type);
+    //             LOG_DEBUG("name: %s tensor_storage.ne[0]: %ld new_ne0: %ld", tensor_storage.name.c_str(), tensor_storage.ne[0], new_ne0);
+
+    //         }
+    //     }
+    // }
+
     auto backend    = ggml_backend_cpu_init();
     size_t mem_size = 1 * 1024 * 1024;  // for padding
     mem_size += tensor_storages.size() * ggml_tensor_overhead();
@@ -1248,7 +1271,7 @@ bool ModelLoader::save_to_gguf_file(const std::string& file_path, ggml_type type
     LOG_INFO("load tensors done");
     LOG_INFO("trying to save tensors to %s", file_path.c_str());
     if (success) {
-        // gguf_write_to_file(gguf_ctx, file_path.c_str(), false);
+        gguf_write_to_file(gguf_ctx, file_path.c_str(), false);
     }
     ggml_free(ggml_ctx);
     gguf_free(gguf_ctx);

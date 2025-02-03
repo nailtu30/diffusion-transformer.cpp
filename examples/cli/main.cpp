@@ -54,6 +54,7 @@ const char* schedule_str[] = {
 
 const char* modes_str[] = {
     "class_label2img",
+    "convert",
 };
 
 enum DITMode {
@@ -70,16 +71,18 @@ struct DITParams {
     dit_type_t wtype = DIT_TYPE_COUNT;
     std::string output_path = "output.png";
 
-    std::vector<int> class_label_prompt;
+    // std::vector<int> class_label_prompt = {207, 360, 387, 974, 88, 979, 417, 279};
+    int class_label_prompt = 207;
     std::string temp_prompt;
-    float cfg_scale   = 7.0f;
+    float cfg_scale   = 4.0f;
     int width         = 256;
     int height        = 256;
     int batch_count   = 1;
 
     sample_method_t sample_method = EULER_A;
     schedule_t schedule           = DEFAULT;
-    int sample_steps              = 20;
+    // int sample_steps              = 20;
+    int sample_steps              = 250;
     rng_type_t rng_type           = CUDA_RNG;
     int64_t seed                  = 42;
     bool verbose                  = false;
@@ -106,7 +109,7 @@ void print_params(DITParams params) {
     printf("    vae_path:          %s\n", params.vae_path.c_str());
     printf("    output_path:       %s\n", params.output_path.c_str());
     printf("    vae decoder on cpu:%s\n", params.vae_on_cpu ? "true" : "false");
-    printf("    class label prompt:%s\n", vector2string(params.class_label_prompt).c_str());
+    printf("    class label prompt:%d\n", params.class_label_prompt);
     printf("    cfg_scale:         %.2f\n", params.cfg_scale);
     printf("    width:             %d\n", params.width);
     printf("    height:            %d\n", params.height);
@@ -234,7 +237,7 @@ void parse_args(int argc, const char** argv, DITParams& params) {
             }
             // params.temp_prompt = argv[i];
             params.temp_prompt = "[207, 360, 387, 974, 88, 979, 417, 279]";
-            params.class_label_prompt = {207, 360, 387, 974, 88, 979, 417, 279};
+            params.class_label_prompt = 207;
         } else if (arg == "--cfg-scale") {
             if (++i >= argc) {
                 invalid_arg = true;
@@ -518,35 +521,35 @@ int main(int argc, const char* argv[]) {
         return 1;
     }
 
-    // dit_image_t* results = class_label2img(sd_ctx,
-    //                       params.class_label_prompt,
-    //                       params.cfg_scale,
-    //                       params.width,
-    //                       params.height,
-    //                       params.sample_method,
-    //                       params.sample_steps,
-    //                       params.seed,
-    //                       params.batch_count);
-    // if (results == NULL) {
-    //     printf("generate failed\n");
-    //     free_sd_ctx(sd_ctx);
-    //     return 1;
-    // }
+    dit_image_t* results = class_label2img(sd_ctx,
+                          params.class_label_prompt,
+                          params.cfg_scale,
+                          params.width,
+                          params.height,
+                          params.sample_method,
+                          params.sample_steps,
+                          params.seed,
+                          params.batch_count);
+    if (results == NULL) {
+        printf("generate failed\n");
+        free_sd_ctx(sd_ctx);
+        return 1;
+    }
 
-    // size_t last            = params.output_path.find_last_of(".");
-    // std::string dummy_name = last != std::string::npos ? params.output_path.substr(0, last) : params.output_path;
-    // for (int i = 0; i < params.batch_count; i++) {
-    //     if (results[i].data == NULL) {
-    //         continue;
-    //     }
-    //     std::string final_image_path = i > 0 ? dummy_name + "_" + std::to_string(i + 1) + ".png" : dummy_name + ".png";
-    //     stbi_write_png(final_image_path.c_str(), results[i].width, results[i].height, results[i].channel,
-    //                    results[i].data, 0, get_image_params(params, params.seed + i).c_str());
-    //     printf("save result image to '%s'\n", final_image_path.c_str());
-    //     free(results[i].data);
-    //     results[i].data = NULL;
-    // }
-    // free(results);
+    size_t last            = params.output_path.find_last_of(".");
+    std::string dummy_name = last != std::string::npos ? params.output_path.substr(0, last) : params.output_path;
+    for (int i = 0; i < params.batch_count; i++) {
+        if (results[i].data == NULL) {
+            continue;
+        }
+        std::string final_image_path = i > 0 ? dummy_name + "_" + std::to_string(i + 1) + ".png" : dummy_name + ".png";
+        stbi_write_png(final_image_path.c_str(), results[i].width, results[i].height, results[i].channel,
+                       results[i].data, 0, get_image_params(params, params.seed + i).c_str());
+        printf("save result image to '%s'\n", final_image_path.c_str());
+        free(results[i].data);
+        results[i].data = NULL;
+    }
+    free(results);
     free_sd_ctx(sd_ctx);
     free(input_image_buffer);
 

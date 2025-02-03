@@ -139,7 +139,7 @@ DIT_API sd_ctx_t* new_sd_ctx(const char* model_path,
 DIT_API void free_sd_ctx(sd_ctx_t* sd_ctx);
 
 DIT_API dit_image_t* class_label2img(sd_ctx_t* sd_ctx,
-                           std::vector<int> class_label_prompt,
+                           int class_label_prompt,
                            float cfg_scale,
                            int width,
                            int height,

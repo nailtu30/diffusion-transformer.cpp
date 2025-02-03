@@ -474,7 +474,7 @@ public:
         auto final_layer = std::dynamic_pointer_cast<FinalLayer>(blocks["final_layer"]);
 
         for (int i = 0; i < depth; i++) {
-            auto block = std::dynamic_pointer_cast<DiTBlock>(blocks["joint_blocks." + std::to_string(i)]);
+            auto block = std::dynamic_pointer_cast<DiTBlock>(blocks["blocks." + std::to_string(i)]);
             x = block->forward(ctx, x, c_mod);
         }
 
@@ -499,19 +499,30 @@ public:
         int64_t w = x->ne[0];
         int64_t h = x->ne[1];
 
+        // LOG_DEBUG("x: %ld %ld %ld %ld", x->ne[0], x->ne[1], x->ne[2], x->ne[3]);
+
         auto patch_embed = x_embedder->forward(ctx, x);            // [N, H*W, hidden_size]
+        // LOG_DEBUG("patch_embed: %ld %ld %ld %ld", patch_embed->ne[0], patch_embed->ne[1], patch_embed->ne[2], patch_embed->ne[3]);
         auto pos_embed   = params["pos_embed"];           // [1, H*W, hidden_size]
         x                = ggml_add(ctx, patch_embed, pos_embed);  // [N, H*W, hidden_size]
+        // LOG_DEBUG("x: %ld %ld %ld %ld", x->ne[0], x->ne[1], x->ne[2], x->ne[3]);
 
         auto c = t_embedder->forward(ctx, t);  // [N, hidden_size]
-        auto y_embedder = std::dynamic_pointer_cast<VectorEmbedder>(blocks["y_embedder"]);
+        // LOG_DEBUG("c: %ld %ld %ld %ld", c->ne[0], c->ne[1], c->ne[2], c->ne[3]);
+        auto y_embedder = std::dynamic_pointer_cast<Embedding>(blocks["y_embedder"]);
+        // LOG_DEBUG("y: %ld %ld %ld %ld", y->ne[0], y->ne[1], y->ne[2], y->ne[3]);
 
         y = y_embedder->forward(ctx, y);  // [N, hidden_size]
+        // LOG_DEBUG("y: %ld %ld %ld %ld", y->ne[0], y->ne[1], y->ne[2], y->ne[3]);
         c = ggml_add(ctx, c, y);
+        // LOG_DEBUG("c: %ld %ld %ld %ld", c->ne[0], c->ne[1], c->ne[2], c->ne[3]);
 
         x = forward_core_with_concat(ctx, x, c);  // (N, H*W, patch_size ** 2 * out_channels)
+        // LOG_DEBUG("x: %ld %ld %ld %ld", x->ne[0], x->ne[1], x->ne[2], x->ne[3]);
 
         x = unpatchify(ctx, x, h, w);  // [N, C, H, W]
+
+        // LOG_DEBUG("x: %ld %ld %ld %ld", x->ne[0], x->ne[1], x->ne[2], x->ne[3]);
 
         return x;
     }

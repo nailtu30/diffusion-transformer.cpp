@@ -112,16 +112,16 @@ public:
                         ggml_type wtype,
                         schedule_t schedule,
                         bool vae_on_cpu) {
-#ifdef SD_USE_CUDA
+#ifdef DIT_USE_CUDA
         LOG_DEBUG("Using CUDA backend");
         backend = ggml_backend_cuda_init(0);
 #endif
-#ifdef SD_USE_METAL
+#ifdef DIT_USE_METAL
         LOG_DEBUG("Using Metal backend");
         ggml_log_set(ggml_log_callback_default, nullptr);
         backend = ggml_backend_metal_init();
 #endif
-#ifdef SD_USE_VULKAN
+#ifdef DIT_USE_VULKAN
         LOG_DEBUG("Using Vulkan backend");
         for (int device = 0; device < ggml_backend_vk_get_device_count(); ++device) {
             backend = ggml_backend_vk_init(device);
@@ -130,7 +130,7 @@ public:
             LOG_WARN("Failed to initialize Vulkan backend");
         }
 #endif
-#ifdef SD_USE_SYCL
+#ifdef DIT_USE_SYCL
         LOG_DEBUG("Using SYCL backend");
         backend = ggml_backend_sycl_init(0);
 #endif
@@ -272,7 +272,8 @@ public:
                         ggml_tensor* init_latent,
                         ggml_tensor* noise,
                         float cfg_scale,
-                        std::vector<int> labels,
+                        // std::vector<int> labels,
+                        int label,
                         sample_method_t method,
                         const std::vector<float>& sigmas) {
         LOG_DEBUG("Sample");
@@ -314,17 +315,22 @@ public:
             float t = denoiser->sigma_to_t(sigma);
             std::vector<float> timesteps_vec(x->ne[3], t);  // [N, ]
             auto timesteps = vector_to_ggml_tensor(work_ctx, timesteps_vec);
-            auto labels_tensor = vector_to_ggml_tensor_i32(work_ctx, labels);
-
+            // LOG_DEBUG("Label: %d", label);
+            std::vector<int> label_vector;
+            label_vector.push_back(label);
+            ggml_tensor* label_tensor =  vector_to_ggml_tensor_i32(work_ctx, label_vector);
+            // LOG_DEBUG("Label done");
             copy_ggml_tensor(noised_input, input);
             // noised_input = noised_input * c_in
             ggml_tensor_scale(noised_input, c_in);
+            // LOG_DEBUG("before diffusion_model->compute");
 
             diffusion_model->compute(n_threads,
                                     noised_input,
                                     timesteps,
-                                    labels_tensor,
+                                    label_tensor,
                                     &output);
+            // LOG_DEBUG("after diffusion_model->compute");
             float* negative_data = (float*)output->data;
 
             int step_count         = sigmas.size();
@@ -333,10 +339,12 @@ public:
             float* positive_data = (float*)output->data;
             int ne_elements      = (int)ggml_nelements(denoised);
             for (int i = 0; i < ne_elements; i++) {
-                float latent_result = negative_data[i] + cfg_scale * (positive_data[i] - negative_data[i]);
+                // float latent_result = negative_data[i] + cfg_scale * (positive_data[i] - negative_data[i]);
+                float latent_result = positive_data[i];
                 // v = latent_result, eps = latent_result
                 // denoised = (v * c_out + input * c_skip) or (input + eps * c_out)
-                vec_denoised[i] = latent_result * c_out + vec_input[i] * c_skip;
+                // vec_denoised[i] = latent_result * c_out + vec_input[i] * c_skip;
+                vec_denoised[i] = latent_result;
             }
             int64_t t1 = ggml_time_us();
             if (step > 0) {
@@ -368,7 +376,9 @@ public:
         } else {
             ggml_tensor_scale_input(x);
         }
+        // LOG_DEBUG("before first_stage_model->compute");
         first_stage_model->compute(n_threads, x, decode, &result);
+        // LOG_DEBUG("after first_stage_model->compute");
         first_stage_model->free_compute_buffer();
         if (decode) {
             ggml_tensor_scale_output(result);
@@ -438,7 +448,8 @@ void free_sd_ctx(sd_ctx_t* sd_ctx) {
 dit_image_t* generate_image(sd_ctx_t* sd_ctx,
                            struct ggml_context* work_ctx,
                            ggml_tensor* init_latent,
-                           std::vector<int> class_label_prompt,
+                        //    std::vector<int> class_label_prompt,
+                           int class_label_prompt,
                            float cfg_scale,
                            int width,
                            int height,
@@ -497,7 +508,9 @@ dit_image_t* generate_image(sd_ctx_t* sd_ctx,
     std::vector<struct ggml_tensor*> decoded_images;  // collect decoded images
     for (size_t i = 0; i < final_latents.size(); i++) {
         t1                      = ggml_time_ms();
+        // LOG_DEBUG("before sd_ctx->sd->decode_first_stage");
         struct ggml_tensor* img = sd_ctx->sd->decode_first_stage(work_ctx, final_latents[i] /* x_0 */);
+        // LOG_DEBUG("after sd_ctx->sd->decode_first_stage");
         // print_ggml_tensor(img);
         if (img != NULL) {
             decoded_images.push_back(img);
@@ -529,7 +542,7 @@ dit_image_t* generate_image(sd_ctx_t* sd_ctx,
 }
 
 dit_image_t* class_label2img(sd_ctx_t* sd_ctx,
-                    std::vector<int> class_label_prompt,
+                    int class_label_prompt,
                     float cfg_scale,
                     int width,
                     int height,

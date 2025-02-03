@@ -415,13 +415,13 @@ public:
         size_t num_resolutions = ch_mult.size();
         for (int i = num_resolutions - 1; i >= 0; i--) {
             for (int j = 0; j < num_res_blocks + 1; j++) {
-                std::string name = "up." + std::to_string(i) + ".block." + std::to_string(j);
+                std::string name = "up." + std::to_string(3-i) + ".block." + std::to_string(j);
                 auto up_block    = std::dynamic_pointer_cast<ResnetBlock>(blocks[name]);
 
                 h = up_block->forward(ctx, h);
             }
             if (i != 0) {
-                std::string name = "up." + std::to_string(i) + ".upsample";
+                std::string name = "up." + std::to_string(3-i) + ".upsample";
                 auto up_sample   = std::dynamic_pointer_cast<UpSampleBlock>(blocks[name]);
 
                 h = up_sample->forward(ctx, h);
@@ -501,8 +501,12 @@ public:
         }
         auto decoder = std::dynamic_pointer_cast<Decoder>(blocks["decoder"]);
 
+        // LOG_DEBUG("decoder: %p", decoder);
+
         ggml_set_name(z, "bench-start");
+        // LOG_DEBUG("bench-start");
         auto h = decoder->forward(ctx, z);
+        // LOG_DEBUG("bench-end");
         ggml_set_name(h, "bench-end");
         return h;
     }
@@ -547,9 +551,13 @@ struct AutoEncoderKL : public GGMLRunner {
 
         z = to_backend(z);
 
+        // LOG_DEBUG("decode_graph: %d", decode_graph);
+
         struct ggml_tensor* out = decode_graph ? ae.decode(compute_ctx, z) : ae.encode(compute_ctx, z);
 
         ggml_build_forward_expand(gf, out);
+
+        // LOG_DEBUG("after decode_graph");
 
         return gf;
     }
